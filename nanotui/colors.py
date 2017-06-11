@@ -1,0 +1,18 @@
+class Color:
+    BLACK    = 0
+    RED      = 1
+    GREEN    = 2
+    YELLOW   = 3
+    BLUE     = 4
+    MAGENTA  = 5
+    CYAN     = 6
+    WHITE    = 7
+    ATTR_INTENSITY = 8
+    GRAY       = BLACK | ATTR_INTENSITY
+    B_RED      = RED | ATTR_INTENSITY
+    B_GREEN    = GREEN | ATTR_INTENSITY
+    B_YELLOW   = YELLOW | ATTR_INTENSITY
+    B_BLUE     = BLUE | ATTR_INTENSITY
+    B_MAGENTA  = MAGENTA | ATTR_INTENSITY
+    N_CYAN     = CYAN | ATTR_INTENSITY
+    B_WHITE    = WHITE | ATTR_INTENSITY
