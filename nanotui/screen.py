@@ -249,7 +249,7 @@ class Screen():
                 sys.stdout = sys.__stdout__
                 raise ei.with_traceback(tb)
             except:
-                print(error)
+                raise error
 
 
 

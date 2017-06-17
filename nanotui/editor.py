@@ -15,7 +15,7 @@ class Editor(Widget):
     def __init__(self, x=0, y=0, width=80, height=24):
         super().__init__()
         self.top_line = 0
-        self.cur_line = 0
+        self.choice = 0
         self.row = 0
         self.col = 0
         self.x = x
@@ -31,9 +31,9 @@ class Editor(Widget):
     def adjust_cursor_eol(self):
         # Returns True if entire window needs redraw
         val = 0
-        if self.content:
+        if self.items:
             val = self.col + self.margin
-            val = min(val, len(self.content[self.cur_line]))
+            val = min(val, len(self.items[self.choice]))
         if val > self.width - 1:
             self.margin = val - (self.width - 1)
             self.col = self.width - 1
@@ -43,8 +43,8 @@ class Editor(Widget):
             return False
 
     def set_lines(self, lines):
-        self.content = lines
-        self.total_lines = len(lines)
+        self.items = lines
+        self.items_count = len(lines)
 
     def redraw(self):
         self.cursor(False)
@@ -52,10 +52,10 @@ class Editor(Widget):
         r = self.y
         for c in range(self.height):
             self.goto(self.x, r)
-            if i == self.total_lines:
+            if i == self.items_count:
                 self.show_line("", -1)
             else:
-                self.show_line(self.content[i], i)
+                self.show_line(self.items[i], i)
                 i += 1
             r += 1
         self.set_cursor()
@@ -63,7 +63,7 @@ class Editor(Widget):
     def update_line(self):
         self.cursor(False)
         self.goto(self.x, self.row + self.y)
-        self.show_line(self.content[self.cur_line], self.cur_line)
+        self.show_line(self.items[self.choice], self.choice)
         self.set_cursor()
 
     def show_line(self, l, i):
@@ -83,19 +83,19 @@ class Editor(Widget):
             self.set_cursor()
 
     def handle_cursor_keys(self, key):
-        if not self.total_lines:
+        if not self.items_count:
             return
         if key == KEY_DOWN:
-            if self.cur_line + 1 != self.total_lines:
-                self.cur_line += 1
+            if self.choice + 1 != self.items_count:
+                self.choice += 1
                 redraw = self.adjust_cursor_eol()
                 if self.next_line() or redraw:
                     self.redraw()
                 else:
                     self.set_cursor()
         elif key == KEY_UP:
-            if self.cur_line > 0:
-                self.cur_line -= 1
+            if self.choice > 0:
+                self.choice -= 1
                 redraw = self.adjust_cursor_eol()
                 if self.row == 0:
                     if self.top_line > 0:
@@ -128,34 +128,34 @@ class Editor(Widget):
             else:
                 self.set_cursor()
         elif key == KEY_END:
-            self.col = len(self.content[self.cur_line])
+            self.col = len(self.items[self.choice])
             if self.adjust_cursor_eol():
                 self.redraw()
             else:
                 self.set_cursor()
         elif key == KEY_PGUP:
-            self.cur_line -= self.height
+            self.choice -= self.height
             self.top_line -= self.height
             if self.top_line < 0:
                 self.top_line = 0
-                self.cur_line = 0
+                self.choice = 0
                 self.row = 0
-            elif self.cur_line < 0:
-                self.cur_line = 0
+            elif self.choice < 0:
+                self.choice = 0
                 self.row = 0
             self.adjust_cursor_eol()
             self.redraw()
         elif key == KEY_PGDN:
-            self.cur_line += self.height
+            self.choice += self.height
             self.top_line += self.height
-            if self.cur_line >= self.total_lines:
-                self.top_line = self.total_lines - self.height
-                self.cur_line = self.total_lines - 1
+            if self.choice >= self.items_count:
+                self.top_line = self.items_count - self.height
+                self.choice = self.items_count - 1
                 if self.top_line >= 0:
                     self.row = self.height - 1
                 else:
                     self.top_line = 0
-                    self.row = self.cur_line
+                    self.row = self.choice
             self.adjust_cursor_eol()
             self.redraw()
         else:
@@ -166,11 +166,11 @@ class Editor(Widget):
         row -= self.y
         col -= self.x
         if 0 <= row < self.height and 0 <= col < self.width:
-            cur_line = self.top_line + row
-            if cur_line < self.total_lines:
+            choice = self.top_line + row
+            if choice < self.items_count:
                 self.row = row
                 self.col = col
-                self.cur_line = cur_line
+                self.choice = choice
                 self.adjust_cursor_eol()
                 self.set_cursor()
                 return True
@@ -183,12 +183,12 @@ class Editor(Widget):
         return self.handle_edit_key(key)
 
     def handle_edit_key(self, key):
-            l = self.content[self.cur_line]
+            l = self.items[self.choice]
             if key == KEY_ENTER:
-                self.content[self.cur_line] = l[:self.col + self.margin]
-                self.cur_line += 1
-                self.content[self.cur_line:self.cur_line] = [l[self.col + self.margin:]]
-                self.total_lines += 1
+                self.items[self.choice] = l[:self.col + self.margin]
+                self.choice += 1
+                self.items[self.choice:self.choice] = [l[self.col + self.margin:]]
+                self.items_count += 1
                 self.col = 0
                 self.margin = 0
                 self.next_line()
@@ -200,15 +200,15 @@ class Editor(Widget):
                     else:
                         self.margin -= 1
                     l = l[:self.col + self.margin] + l[self.col + self.margin + 1:]
-                    self.content[self.cur_line] = l
+                    self.items[self.choice] = l
                     self.update_line()
             elif key == KEY_DELETE:
                 l = l[:self.col + self.margin] + l[self.col + self.margin + 1:]
-                self.content[self.cur_line] = l
+                self.items[self.choice] = l
                 self.update_line()
             else:
                 l = l[:self.col + self.margin] + str(key, "utf-8") + l[self.col + self.margin:]
-                self.content[self.cur_line] = l
+                self.items[self.choice] = l
                 self.col += 1
                 self.adjust_cursor_eol()
                 self.update_line()

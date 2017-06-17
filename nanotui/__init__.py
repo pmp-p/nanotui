@@ -1,5 +1,7 @@
 import sys
-sys.path.insert(0,'.')
+if not '.' in sys.path:
+    sys.path.insert(0,'.')
+
 import builtins
 
 ec={}
@@ -58,6 +60,28 @@ Override('Time',time)
 
 class Continue:pass
 
+def boxpipe(wdg,shell,clear=False):
+    lines=[]
+    for line in os.popen(shell).readlines():
+        lines.append( line.strip() )
+
+    if clear:
+        wdg.items=[]
+        wdg.dirty=True
+
+    if len(lines):
+        wdg.items.extend( lines )
+        wdg.items_count = len( wdg.items)
+        wdg.redraw()
+
+
+def zfill(i,places,char='0'):
+    i=str(i)
+    if len(i)<places:  i = '%s%s' % (  char * ( places-len(i) ) , i )
+    return i
+
+builtins.zfill = zfill
+builtins.boxpipe = boxpipe
 
 
 import nanotui.screen
@@ -70,6 +94,11 @@ nanotui.screen.tty = tty
 
 BusyLoop = -1
 Pass = -1
+
+def clock(sep=':'):
+    import time
+    y,my,d,h,m,s = time.localtime( Time.time() )[:6]
+    return '%s%c%s%c%s'  % ( zfill(h,2),sep,zfill(m,2),sep,zfill(s,2) )
 
 
 def x0y1(*argv):
@@ -272,9 +301,11 @@ class VisualPage(nanotui.widgets.Dialog):
     def End(self,exitcode=None,error=None):
         global crt,dlg,ec
         ec[self.name]=exitcode
-        dlg.remove( self )
+        if self in dlg:
+            dlg.remove( self )
         if not len(dlg):
             crt.End(error=error)
+            crt = None
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.End( exitcode=self.loop() )

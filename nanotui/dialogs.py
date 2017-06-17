@@ -18,11 +18,11 @@ def add_ok_cancel_buttons(d):
     b.finish_dialog = ACTION_CANCEL
 
 
-class DTextEntry(Dialog):
+class DInputField(Dialog):
 
     def __init__(self, entry_w, text, title=""):
         super().__init__(10, 5, title=title)
-        self.entry = WTextEntry(entry_w, text)
+        self.entry = WInputField(entry_w, text)
         self.entry.finish_dialog = ACTION_OK
         self.add(1, 1, self.entry)
 

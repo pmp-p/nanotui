@@ -287,7 +287,7 @@ class WListBox(EditorExt):
 
     def __init__(self, items=[],width=0,height=0):
         EditorExt.__init__(self)
-        self.items = items
+        self.set_items( items )
         self.choice = 0
         self.width = width or max( map(len,items) )
         self.height = height or len(items)
@@ -300,7 +300,7 @@ class WListBox(EditorExt):
         return l
 
     def show_line(self, l, i):
-        hlite = self.cur_line == i
+        hlite = self.choice == i
         if hlite:
             if self.focus:
                 self.attr_color(self.color.B_WHITE, self.color.GREEN)
@@ -333,6 +333,29 @@ class WListBox(EditorExt):
         # Force off
         super().cursor(False)
 
+    def set_text(text='',idx=-1):
+        if idx <0 :
+            idx = self.choice
+        if text!=self.items[self.choice]:
+            self.items[idx]= text
+            self.dirty
+            return True
+
+    def clear(self):
+        self.items = []
+        self.items_count = 0
+        self.choice = None
+        self.dirty=True
+
+    #TODO: preselection
+    def set_items(self,items):
+        self.items = items
+        self.items_count = len( self.items )
+        self.choice=0
+        self.dirty = True
+        return self.dirty
+
+
 
 class WPopupList(Dialog):
 
@@ -361,12 +384,12 @@ class WPopupList(Dialog):
         return super().handle_mouse(x, y)
 
     def get_choice(self):
-        return self.list.cur_line
+        return self.list.choice
 
     def get_selected_value(self):
         if not self.list.content:
             return None
-        return self.list.content[self.list.cur_line]
+        return self.list.content[self.list.choice]
 
 
 class WDropDown(Widget):
@@ -401,11 +424,11 @@ class WDropDown(Widget):
         self.handle_mouse(0, 0)
 
 
-class WTextEntry(EditorExt):
+class WInputField(EditorExt):
 
     focusable = True
 
-    def __init__(self, text='TextEntry',width=8):
+    def __init__(self, text='InputField',width=8):
         super().__init__(width=width, height=1)
         self.text = text
         self.height = 1
@@ -471,7 +494,7 @@ class WMultiEntry(EditorExt):
         self.width = width
         self.focus = False
         self.set_lines(items)
-        self.cur_line = 0
+        self.choice = 0
 
     def show_line(self, l, i):
         self.attr_color(self.color.BLACK, self.color.CYAN)
@@ -479,7 +502,7 @@ class WMultiEntry(EditorExt):
         self.attr_reset()
 
 
-class WComboBox(WTextEntry):
+class WComboBox(WInputField):
 
     popup_class = WPopupList
     popup_h = 5
@@ -538,7 +561,7 @@ class WCompletionList(WPopupList):
             choices = main.get_choices(main.get_text(), wid.state)
             self.list.set_lines(choices)
             self.list.top_line = 0
-            self.list.cur_line = 0
+            self.list.choice = 0
             self.list.row = 0
             self.list.redraw()
         chk.on("changed", is_prefix_changed)
