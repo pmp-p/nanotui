@@ -1,16 +1,49 @@
-import sys
-sys.path.insert(0,'%s/mpy' % __file__.rsplit('mpycompat',1)[0] )
+# -*- coding: utf-8 -*-
+from __future__ import with_statement
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
 
+import sys
 import builtins
 
-try:
+
+builtins.sys = sys
+builtins.builtins = builtins
+
+impl = sys.implementation.name[:3]
+if impl=='mic':
+    impl='upy'
+    builtins.UPY = True
+else:
+    builtins.UPY = False
+
+dirname = __file__.rsplit('mpycompat',1)[0]
+sys.path.insert(0,'%s/xpy' % dirname )
+sys.path.insert(0,'%s/xpy/%s' % ( dirname , impl ) )
+del dirname
+
+
+if UPY:
+    import ujson as json
     import utime as time
-except:
+    def ticks_us():return time.ticks_us()
+    import _thread
+    import gc
+    def do_gc(v=False):gc.collect()
+    import ubluelet as bluelet
+
+else:
+    import json
     import time
+    def ticks_us(): return int(time.time() * 1000000)
+    def do_gc(v=False):pass
+    import bluelet
 
-import _thread
+import os
+import os.path
 
-
+protect = ['RunTime']
 
 class select:
     ioq = {}
@@ -34,6 +67,8 @@ class select:
             buf += select.ioq[fdid].pop(0)
         return buf
 
+if UPY:
+    builtins.select  = select
 
 
 class iowait:
@@ -59,8 +94,7 @@ class iowait:
                 print(self.fd,e)
                 return
 
-builtins.Time = time
-builtins.sys = sys
+
 
 
 def isDefined(varname,name=None):
@@ -95,13 +129,28 @@ class robject(object):
 
 def noop(*argv,**kw):pass
 
+class Debugger:
+
+    def unhandled_coroutine(self,tb):
+        if UPY:
+            print("\n\033[31mCoroutine handling the faulty code has been killed",tb,file=sys.stderr)
+        else:
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+
+
+
 class RunTime:
 
     SerFlag = 0
+    COMRATE = 115200
+    COMPORT = '/dev/ttyGS0'
 
     CPR = {}
 
     Timers = {}
+
+    CoRoutines = []
 
     builtins = builtins
     IP = '0.0.0.0'
@@ -123,6 +172,8 @@ class RunTime:
 
     MEM_init = 32678
 
+    wantQuit = False
+
     @classmethod
     def add(cls,entry,value):
         global protect
@@ -138,10 +189,83 @@ class RunTime:
         finally:
             cls.SerFlag -= 1
 
+    debugger = Debugger()
 
 
+    unset = object()
+
+
+def logger(*argv,**kw):
+    for arg in argv:
+        print(arg,end=' ',file=sys.stderr)
+    print('',file=sys.stderr)
+    if not UPY:
+        sys.stderr.flush()
+    #os.fsync(sys.stderr.fileno())
+
+def SI(dl,bw=False):
+    u = 'B/s'
+    dl = float(dl)
+    if bw:
+        for u in ['KB/s','MB/s','GB/s']:
+            dl = dl/1024
+            if dl<1024:
+                return '%0.2f %s' % (dl,u )
+        return '%s %s' %( dl,u )
+
+    for u in ['K','M','G']:
+        dl = dl/1024
+        if dl<1024:
+            return '%0.2f %sB' % (dl,u )
+    return '%s %s' %( dl,u )
+
+class Lapse:
+    def __init__(self,intv=1.0,oneshot=None):
+        self.cunit = intv
+        self.intv = int( intv * 1000000 )
+        self.next = self.intv
+        self.last = ticks_us()
+        self.count = 1.0
+        if oneshot:
+            self.shot = False
+            return
+        self.shot = None
+
+#FIXME: pause / resume(reset)
+
+    def __bool__(self):
+        if self.shot is True:
+            return False
+
+        t = ticks_us()
+        self.next -= ( t - self.last )
+        self.last = t
+        if self.next <= 0:
+            if self.shot is False:
+                self.shot = True
+            self.count+= self.cunit
+            self.next = self.intv
+            return True
+
+        return False
+
+RunTime.add('SI', SI )
+RunTime.add('Lapse', Lapse )
+
+
+builtins.os = os
+builtins.bluelet = bluelet
+builtins.Time = time
+builtins.sys = sys
 builtins.RunTime = RunTime
 builtins.use = RunTime
 builtins.isDefined = isDefined
 builtins.robject = robject
-builtins.do_gc = noop
+builtins.do_gc = do_gc
+
+
+builtins.fix = logger
+builtins.warn = logger
+builtins.dev = logger
+builtins.err = logger
+builtins._info = builtins.info = logger
