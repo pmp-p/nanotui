@@ -3,17 +3,14 @@
 # Copyright (c) 2015 Paul Sokolovsky
 # Distributed under MIT License
 #
-import sys
-import os
 
 from .screen import *
 from .basewidget import Widget
 
 
-class Editor(Widget):
+class WEditor(Widget):
 
-    def __init__(self, x=0, y=0, width=80, height=24):
-        super().__init__()
+    def setup(self,text="Dialog", width=80, height=25, x=1, y=1, z=0,**kw):
         self.top_line = 0
         self.choice = 0
         self.row = 0
@@ -207,34 +204,13 @@ class Editor(Widget):
                 self.items[self.choice] = l
                 self.update_line()
             else:
-                l = l[:self.col + self.margin] + str(key, "utf-8") + l[self.col + self.margin:]
+                try:
+                    l = l[:self.col + self.margin] + str(key, "utf-8") + l[self.col + self.margin:]
+                except:
+                    l = 'error'
                 self.items[self.choice] = l
                 self.col += 1
                 self.adjust_cursor_eol()
                 self.update_line()
 
-    def deinit_tty(self):
-        # Don't leave cursor in the middle of screen
-        self.goto(0, self.height)
-        super().deinit_tty()
 
-
-if __name__ == "__main__":
-    with open(sys.argv[1]) as f:
-        content = f.read().splitlines()
-        #content = f.readlines()
-
-
-#os.write(1, b"\x1b[18t")
-#key = os.read(0, 32)
-#print(repr(key))
-
-#key = os.read(0, 32)
-#print(repr(key))
-
-    e = Editor()
-    e.init_tty()
-    e.enable_mouse()
-    e.set_lines(content)
-    e.loop()
-    e.deinit_tty()

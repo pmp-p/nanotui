@@ -21,7 +21,8 @@ def add_ok_cancel_buttons(d):
 class DInputField(Dialog):
 
     def __init__(self, entry_w, text, title=""):
-        super().__init__(10, 5, title=title)
+        try:super().__init__(10, 5, title=title)
+        except:Dialog.__init__(self,10, 5, title=title)
         self.entry = WInputField(entry_w, text)
         self.entry.finish_dialog = ACTION_OK
         self.add(1, 1, self.entry)
@@ -35,7 +36,8 @@ class DInputField(Dialog):
 class DMultiEntry(Dialog):
 
     def __init__(self, entry_w, entry_h, lines, title=""):
-        super().__init__(10, 5, entry_w + 2, entry_h + 3, title=title)
+        try:super().__init__(10, 5, entry_w + 2, entry_h + 3, title=title)
+        except:Dialog.__init__(self,10, 5, entry_w + 2, entry_h + 3, title=title)
         self.widget = WMultiEntry(entry_w, entry_h, lines)
         self.add(1, 1, self.widget)
         add_ok_cancel_buttons(self)
@@ -50,7 +52,8 @@ class DMultiEntry(Dialog):
 class DConfirmation(Dialog):
 
     def __init__(self, lines, title=""):
-        super().__init__(10, 5, title=title)
+        try:super().__init__(10, 5, title=title)
+        except:Dialog.__init__(self,10, 5, title=title)
         if not isinstance(lines, list):
             lines = [lines]
         i = 1

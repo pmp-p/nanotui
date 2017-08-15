@@ -10,12 +10,18 @@ from .editor import *
 
 
 # Edit single line, quit on Enter/Esc
-class LineEditor(Editor):
+class LineEditor(WEditor):
 
     def handle_cursor_keys(self, key):
-        if super().handle_cursor_keys(key):
-            self.just_started = False
-            return True
+        try:
+            if super().handle_cursor_keys(key): #MP
+                self.just_started = False
+                return True
+        except:
+            if Editor.handle_cursor_keys(self,key):
+                self.just_started = False
+                return True
+
         return False
 
     def handle_key(self, key):
@@ -27,7 +33,9 @@ class LineEditor(Editor):
             self.col = 0
             self.just_started = False
 
-        return super().handle_key(key)
+        try:return super().handle_key(key) #MP
+        except:return Editor.handle_key(self,key)
+
 
     def edit(self, line):
         self.set_lines([line])
@@ -40,13 +48,16 @@ class LineEditor(Editor):
         return None
 
 
-class Viewer(Editor):
+class Viewer(WEditor):
 
     def handle_key(self, key):
         if key in (KEY_ENTER, KEY_ESC):
             return key
-        if super().handle_cursor_keys(key):
-            return True
+        try:
+            if super().handle_cursor_keys(key):return True #MP
+        except:
+            if Editor.handle_cursor_keys(self,key):return True
+        return None
 
 
 # Viewer with colored lines, (whole line same color)
@@ -61,7 +72,8 @@ class LineColorViewer(Viewer):
             except IndexError:
                 c = self.def_c
         self.attr_color(c)
-        super().show_line(l, i)
+        try:super().show_line(l, i)
+        except:Viewer.show_line(self,l, i)
         self.attr_reset()
 
     def set_line_colors(self, default_color, color_list={}):
@@ -93,14 +105,14 @@ class CharColorViewer(Viewer):
         self.def_c = default_color
 
 
-class EditorExt(Editor):
+class EditorExt(WEditor):
 
     screen_width = 80
 
-    def __init__(self, left=0, top=0, width=80, height=24):
-        super().__init__(left, top, width, height)
+    def setup(self,text='EditorExt', width=80, height=24, x=0, y=0, z=0, **kw):
+        WEditor.setup(self,text=text, width=width, height=height, x=x, y=y, z=0 , **kw  )
         # +1 assumes there's a border around editor pane
-        self.status_y = top + height + 1
+        self.status_y = y + height + 1
 
     def get_text(self):
         if self.choice>=0 and self.choice<self.items_count:

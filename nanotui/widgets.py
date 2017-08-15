@@ -1,10 +1,15 @@
 from .basewidget import *
-from .editorext import *
+
+
+from .editor import *
+from .editorext import * # LineEditor(WEditor)
 from . import symbols
 
 import nanotui.colors
 
 evq = []
+
+def cn(o):return o.__class__.__name__
 
 class Dialog(Widget):
 
@@ -13,12 +18,7 @@ class Dialog(Widget):
 
     finish_on_esc = True
 
-    def __init__(self,text="Dialog", width=80, height=25, x=1, y=1):
-        super().__init__()
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
+    def setup(self,text="Dialog", width=80, height=25, x=1, y=1, z=0,**kw):
         self.text = " %s " % text
 
         # On both sides
@@ -28,25 +28,41 @@ class Dialog(Widget):
         self.focus_idx = -1
 
 
+
+
     def xy_add(self, x, y, widget):
         if isinstance(widget, str):
             # Convert raw string to WLabel
             widget = WLabel(widget)
         widget.set_xy(self.x + x, self.y + y)
-        self.children.append(widget)
         widget.owner = self
         return widget
 
 
     def autosize(self, extra_w=0, extra_h=0):
+        return
+
         w = 0
         h = 0
-        for wid in self.children:
+        for np in self.np.children:
+            wid = np.node
             w = max(w, wid.x - self.x + wid.width)
             h = max(h, wid.y - self.y + wid.height)
         self.width = max(self.width, w + self.border_w - 1) + extra_w
         self.height = max(self.height, h + self.border_h - 1) + extra_h
 
+
+    def draw_children(self,parent,indent=''):
+        for np in parent.np.children:
+            child = np.node
+
+            #print(indent, cn(parent),cn(child),file=sys.stderr)
+            try:
+                child.redraw()
+                child.dirty=False
+                self.draw_children( child, indent+'    ' )
+            except Exception as e:
+                warn('65:', e, self)
 
     def redraw(self):
         # Init some state on first redraw
@@ -64,12 +80,7 @@ class Dialog(Widget):
         self.dialog_box(self.x, self.y, self.width, self.height, self.text)
         doit = False
 
-        for w in self.children:
-            try:
-                w.redraw()
-                w.dirty=False
-            except Exception as e:
-                print( e, self)
+        self.draw_children(self)
 
         self.dirty = False
         # Then give widget in focus a chance to enable cursor
@@ -77,16 +88,17 @@ class Dialog(Widget):
             self.focus_w.set_cursor()
 
     def find_focusable_by_idx(self, from_idx, direction):
-        sz = len(self.children)
+        sz = len(self.np.children)
         while 0 <= from_idx < sz:
-            if self.children[from_idx].focusable:
-                return from_idx, self.children[from_idx]
+            if self.np.children[from_idx].node.focusable:
+                return from_idx, self.np.children[from_idx].node
             from_idx = (from_idx + direction) % sz
         return None, None
 
     def find_focusable_by_xy(self, x, y):
         i = 0
-        for w in self.children:
+        for np in self.np.children:
+            w= np.node
             if w.focusable and w.inside(x, y):
                 return i, w
             i += 1
@@ -104,7 +116,8 @@ class Dialog(Widget):
         widget.set_cursor()
 
     def move_focus(self, direction):
-        prev_idx = (self.focus_idx + direction) % len(self.children)
+
+        prev_idx = ( (self.focus_idx or 0) + direction) % len(self.np.children)
         self.focus_idx, new_w = self.find_focusable_by_idx(prev_idx, direction)
         self.set_focus(new_w)
 
@@ -141,10 +154,19 @@ class Dialog(Widget):
 
 class WLabel(Widget):
 
-    def __init__(self, text='label'):
+    SIZE = [8,1,60,1]
+
+    def setup(self, text='', width=0, height=0, **kw ):
+
+        self.height = height or 1
+
+        if text[-1]==']':
+            self.width = len(text)
+            text=text[:-1].strip()
+        else:
+            self.width = width or len(text)
         self.text = text
-        self.height = 1
-        self.width = len(text)
+
 
     def redraw(self):
         self.goto(self.x, self.y)
@@ -155,12 +177,16 @@ class WButton(Widget):
 
     focusable = True
 
-    def __init__(self, text='WButton', width=0):
+    SIZE = [4,1,16,1]
+
+
+    def setup(self, text='WButton', width=0, height=1, **kw):
         self.text = text
-        self.height = 1
+        self.height = 1 #height
         self.width = width or len(text) + 2
         self.disabled = False
         self.focus = False
+
         self.finish_dialog = False
 
     def redraw(self):
@@ -193,13 +219,46 @@ class WButton(Widget):
             self.on_click()
 
     def on_click(self):
-        pass
+        try:
+            save = builtins.window
+        except:
+            save= RunTime.unset
+
+        builtins.window = NodePath.factory
+
+        e = Event( e = ev.click, target = self, srcElement = self )
+        builtins.window.event = e
+
+        ec = e.key
+        if ec in self.signals:
+            for fn in self.signals[ec]:
+                fn(e)
+        else:
+            en = 'on%s' % e.type
+            for mod in NodePath.factory.modules:
+                if hasattr(mod, en):
+                    getattr(mod,en)(e)
+                    break
+            else:
+                warn(self,'on_click', 'default_handler' )
+        if save is RunTime.unset:
+            del builtins.window
+            return
+
+        builtins.window = save
+        #TODO: buble
 
 
 class WFrame(Widget):
 
-    def __init__(self, text="WFrame", width=-1,height=-1):
-        self.width = width
+    SIZE = [16,3,0,0]
+
+    def setup(self, text="WFrame", width=0,height=0, **kw):
+        if text[-1]==']':
+            self.width = len(text)
+            text=text[:-1].strip()
+        else:
+            self.width = width
         self.height = height
         self.set_text(text)
 
@@ -215,8 +274,7 @@ class WCheckbox(Widget):
 
     focusable = True
 
-    def __init__(self, text='checkbox', state=False):
-        super().__init__()
+    def setup(self, text='checkbox', state=False):
         self.text = text
         self.height = 1
         self.width = 4 + len(text)
@@ -285,8 +343,8 @@ class WListBox(EditorExt):
 
     focusable = True
 
-    def __init__(self, items=[],width=0,height=0):
-        EditorExt.__init__(self)
+    def setup(self, items=[],width=0,height=0,**kw):
+        EditorExt.setup(self, width=width,height=height,**kw)
         self.set_items( items )
         self.choice = 0
         self.width = width or max( map(len,items) )
@@ -314,12 +372,14 @@ class WListBox(EditorExt):
             self.attr_reset()
 
     def handle_mouse(self, x, y):
-        res = super().handle_mouse(x, y)
+        try:res = super().handle_mouse(x, y)
+        except:res = EditorExt.handle_mouse(self,x, y)
         self.redraw()
         return res
 
     def handle_key(self, key):
-        res = super().handle_key(key)
+        try:res = super().handle_key(key)
+        except:res = EditorExt.handle_key(self,key)
         self.redraw()
         return res
 
@@ -331,7 +391,8 @@ class WListBox(EditorExt):
 
     def cursor(self, state):
         # Force off
-        super().cursor(False)
+        try:super().cursor(False)
+        except:EditorExt.cursor(self,False)
 
     def set_text(text='',idx=-1):
         if idx <0 :
@@ -366,22 +427,26 @@ class WPopupList(Dialog):
                 return ACTION_OK
             if key == KEY_ESC:
                 return ACTION_CANCEL
-            return super().handle_key(key)
+            try:return super().handle_key(key) #MP
+            except:return WListBox.handle_key(self,key)
 
         def handle_mouse(self, x, y):
-            if super().handle_mouse(x, y) == True:
-                # (Processed) mouse click finishes selection
-                return ACTION_OK
+            try:
+                if super().handle_mouse(x, y) == True:return ACTION_OK #MP
+            except:
+                if WListBox.handle_mouse(self,x,y):return ACTION_OK
 
-    def __init__(self, x, y, w, h, items):
-        super().__init__(x, y, w, h)
-        self.list = self.OneShotList(w - 2, h - 2, items)
+    def __init__(self, x, y, width, height, items):
+        try:super().__init__(x, y, width, height)
+        except:Dialog.__init__(self,x, y, width, height)
+        self.list = self.OneShotList(width - 2, height - 2, items)
         self.add(1, 1, self.list)
 
     def handle_mouse(self, x, y):
         if not self.inside(x, y):
             return ACTION_CANCEL
-        return super().handle_mouse(x, y)
+        try:return super().handle_mouse(x, y)
+        except:return Dialog.handle_mouse(self,x, y)
 
     def get_choice(self):
         return self.list.choice
@@ -428,26 +493,30 @@ class WInputField(EditorExt):
 
     focusable = True
 
-    def __init__(self, text='InputField',width=8):
-        super().__init__(width=width, height=1)
-        self.text = text
-        self.height = 1
-        self.width = width
+    SIZE = [8,1,60,1]
+
+
+    def setup(self, text='InputField',width=8, height=0,**kw):
+        EditorExt.setup(self,text='InputField',width=width, height=height, **kw)
+        self.height = height or self.SIZE[1]
+        self.width = width or self.SIZE[0]
         self.focus = False
         self.set_text(text)
-        self.col = len(text)
         self.adjust_cursor_eol()
         self.just_started = True
         self.evq = evq
 
-
     def set_text(self, text):
+        self.text = text
         self.set_lines([text])
+        self.col = len(text)
         self.dirty = True
 
 
     def handle_cursor_keys(self, key):
-        if super().handle_cursor_keys(key):
+        try:cond=super().handle_cursor_keys(key)#MP
+        except:cond=EditorExt.handle_cursor_keys(self, key)
+        if cond:
             if self.just_started:
                 self.just_started = False
                 self.redraw()
@@ -466,13 +535,15 @@ class WInputField(EditorExt):
                 self.col = 0
             self.just_started = False
 
-        return super().handle_edit_key(key)
+        try:return super().handle_edit_key(key) #MP
+        except:EditorExt.handle_edit_key(self, key)
 
     def handle_mouse(self, x, y):
         if self.just_started:
             self.just_started = False
             self.redraw()
-        super().handle_mouse(x, y)
+        try:super().handle_mouse(x, y) #MP
+        except:EditorExt.handle_mouse(self, x, y)
 
     def show_line(self, l, i):
         if self.just_started:
@@ -480,7 +551,8 @@ class WInputField(EditorExt):
         else:
             fg = self.color.BLACK
         self.attr_color(fg, self.color.CYAN)
-        super().show_line(l, i)
+        try:super().show_line(l, i)
+        except:EditorExt.show_line(self, l, i)
         self.attr_reset()
 
 
@@ -488,8 +560,9 @@ class WMultiEntry(EditorExt):
 
     focusable = True
 
-    def __init__(self,items='MultiEntry',width=0,height=0):
-        super().__init__(width=width, height=height)
+    def setup(self,items='MultiEntry',width=0,height=0, **kw):
+        try:super().__init__(width=width, height=height)
+        except:EditorExt.__init__(self,width=width, height=height)
         self.height = height
         self.width = width
         self.focus = False
@@ -498,7 +571,8 @@ class WMultiEntry(EditorExt):
 
     def show_line(self, l, i):
         self.attr_color(self.color.BLACK, self.color.CYAN)
-        super().show_line(l, i)
+        try:super().show_line(l, i)
+        except:EditorExt.show_line(self, l, i)
         self.attr_reset()
 
 
@@ -507,9 +581,8 @@ class WComboBox(WInputField):
     popup_class = WPopupList
     popup_h = 5
 
-    def __init__(self, text='ComboBox', items=[],width=0):
+    def setup(self, text='ComboBox', items=[],width=0,**kw):
         # w - 1 width goes to Editor widget
-        super().__init__(width - 1, text)
         # We have full requested width, will show arrow symbol as last char
         self.width = width
         self.items = items
@@ -517,7 +590,8 @@ class WComboBox(WInputField):
     def redraw(self):
         self.goto(self.x + self.width - 1, self.y)
         self.wr(symbols.DOWN_ARROW)
-        super().redraw()
+        try:super().redraw()
+        except:WInputField.redraw(self)
 
     def get_choices(self, substr):
         return self.items
@@ -540,13 +614,15 @@ class WComboBox(WInputField):
         if key == KEY_DOWN:
             self.show_popup()
         else:
-            return super().handle_key(key)
+            try:return super().handle_key(key)
+            except:return WInputField.handle_key(self, key)
 
     def handle_mouse(self, x, y):
         if x == self.x + self.width - 1:
             self.show_popup()
         else:
-            super().handle_mouse(x, y)
+            try:super().handle_mouse(x, y)
+            except:WInputField.handle_mouse(self, x, y)
 
 
 class WCompletionList(WPopupList):
@@ -579,3 +655,8 @@ class WAutoComplete(WComboBox):
         else:
             choices = list(filter(lambda x: substr in x.lower(), self.items))
         return choices
+
+
+
+
+#

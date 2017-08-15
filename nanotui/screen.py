@@ -64,16 +64,29 @@ class Screen():
 
     color = nanotui.colors.Color
 
+    keybuf = []
+    surf = None
+
+    x=0
+    y=0
+    width=80
+    height=25
+
+    last = None
+
+
     def __init__(self, clear=True, mouse=True):
         self.clear = clear
         self.mouse = mouse
-
+        self.cx = 0
+        self.cy = 0
+        self.row_height = 1
 
     @staticmethod
     def wr(s):
         # TODO: When Python is 3.5, update this to use only bytes
         if isinstance(s, str):
-            s = bytes(s, "utf-8")
+            s = p3bytes(s, "utf-8")
         os.write(1, s)
 
     @staticmethod
@@ -126,12 +139,13 @@ class Screen():
     def attr_reset():
         Screen.wr(b"\x1b[0m")
 
-    @staticmethod
-    def cursor(onoff):
+    #@classmethod
+    def cursor(self,onoff):
         if onoff:
             Screen.wr(b"\x1b[?25h")
         else:
             Screen.wr(b"\x1b[?25l")
+
 
     def draw_box(self, left, top, width, height):
         # Use http://www.utf8-chartable.de/unicode-utf8-table.pl
@@ -205,16 +219,24 @@ class Screen():
         cls.wr(b"\x1b[?9l")
 
     @classmethod
-    def screen_size(cls):
-        import select
-        cls.wr(b"\x1b[18t")
-        res = select.select([0], [], [], 0.2)[0]
-        if not res:
-            return (80, 24)
-        resp = os.read(0, 32)
-        assert resp.startswith(b"\x1b[8;") and resp[-1:] == b"t"
-        vals = resp[:-1].split(b";")
-        return (int(vals[2]), int(vals[1]))
+    def surface(cls):
+        if cls.surf is None:
+            cls.wr(b"\x1b[18t")
+            #NO resizing term will lock output!
+            #res = select.select([0], [], [], 0.2)[0]
+            buf = b''
+            try:
+                #if res:
+                buf = os.read(0, 32)
+                assert buf.startswith(b"\x1b[8;") and buf[-1:] == b"t"
+                vals = buf[:-1].split(b";")
+                cls.surf= (int(vals[2]), int(vals[1]))
+                return cls.surf
+            except:
+                cls.keybuf.append( buf )
+            return (80,24)
+        cls.width , cls.height = cls.surf
+        return cls.surf
 
     # Set function to redraw an entire (client) screen
     # This is called to restore original screen, as we don't save it.
