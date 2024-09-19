@@ -5,8 +5,10 @@ from .basewidget import *
 class ItemSelWidget(Widget):
 
     def __init__(self, items):
-        try:super().__init__()
-        except:Widget.__init__(self)
+        try:
+            super().__init__()
+        except:
+            Widget.__init__(self)
         self.items = items
         self.selected = 0
 
@@ -18,8 +20,10 @@ class ItemSelWidget(Widget):
 class WMenuBar(ItemSelWidget):
 
     def __init__(self, menu_struct):
-        try:super().__init__(menu_struct)
-        except:ItemSelWidget.__init__(self,menu_struct)
+        try:
+            super().__init__(menu_struct)
+        except:
+            ItemSelWidget.__init__(self, menu_struct)
         self.x = self.y = 0
         self.h = 1
         self.w = Screen.surface()[0]
@@ -130,8 +134,10 @@ class WMenuBar(ItemSelWidget):
 class WMenuBox(ItemSelWidget):
 
     def __init__(self, items):
-        try:super().__init__(items)
-        except:ItemSelWidget.__init__(self,items)
+        try:
+            super().__init__(items)
+        except:
+            ItemSelWidget.__init__(self, items)
         self.x = self.y = 0
         self.h = len(items) + 2
         w = 0

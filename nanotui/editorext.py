@@ -10,15 +10,15 @@ from .editor import *
 
 
 # Edit single line, quit on Enter/Esc
-class LineEditor(WEditor):
+class LineEditor(Editor):
 
     def handle_cursor_keys(self, key):
         try:
-            if super().handle_cursor_keys(key): #MP
+            if super().handle_cursor_keys(key):  # MP
                 self.just_started = False
                 return True
         except:
-            if Editor.handle_cursor_keys(self,key):
+            if Editor.handle_cursor_keys(self, key):
                 self.just_started = False
                 return True
 
@@ -33,9 +33,10 @@ class LineEditor(WEditor):
             self.col = 0
             self.just_started = False
 
-        try:return super().handle_key(key) #MP
-        except:return Editor.handle_key(self,key)
-
+        try:
+            return super().handle_key(key)  # MP
+        except:
+            return Editor.handle_key(self, key)
 
     def edit(self, line):
         self.set_lines([line])
@@ -48,15 +49,17 @@ class LineEditor(WEditor):
         return None
 
 
-class Viewer(WEditor):
+class Viewer(Editor):
 
     def handle_key(self, key):
         if key in (KEY_ENTER, KEY_ESC):
             return key
         try:
-            if super().handle_cursor_keys(key):return True #MP
+            if super().handle_cursor_keys(key):
+                return True  # MP
         except:
-            if Editor.handle_cursor_keys(self,key):return True
+            if Editor.handle_cursor_keys(self, key):
+                return True
         return None
 
 
@@ -72,8 +75,10 @@ class LineColorViewer(Viewer):
             except IndexError:
                 c = self.def_c
         self.attr_color(c)
-        try:super().show_line(l, i)
-        except:Viewer.show_line(self,l, i)
+        try:
+            super().show_line(l, i)
+        except:
+            Viewer.show_line(self, l, i)
         self.attr_reset()
 
     def set_line_colors(self, default_color, color_list={}):
@@ -105,23 +110,26 @@ class CharColorViewer(Viewer):
         self.def_c = default_color
 
 
-class EditorExt(WEditor):
+class EditorExt(Editor):
 
     screen_width = 80
 
-    def setup(self,text='EditorExt', width=80, height=24, x=0, y=0, z=0, **kw):
-        WEditor.setup(self,text=text, width=width, height=height, x=x, y=y, z=0 , **kw  )
+    def __init__(self, left=0, top=0, width=80, height=24):
+        try:
+            super().__init__(left, top, width, height)
+        except:
+            Editor.__init__(self, left, top, width, height)
         # +1 assumes there's a border around editor pane
-        self.status_y = y + height + 1
+        self.status_y = top + height + 1
 
     def get_text(self):
-        if self.choice>=0 and self.choice<self.items_count:
+        if self.choice >= 0 and self.choice < self.items_count:
             return self.items[self.choice]
         return None
 
-    def set_text(self,text=''):
+    def set_text(self, text=""):
         self.items[self.choice] = text
-        self.dirty=True
+        self.dirty = True
         return self.dirty
 
     def line_visible(self, no):
@@ -181,4 +189,3 @@ class EditorExt(WEditor):
         self.dialog_box(left, top, width, height, title)
         e = LineEditor(left + 1, top + 1, width - 2, height - 2)
         return e.edit(line)
-

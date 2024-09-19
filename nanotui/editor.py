@@ -3,14 +3,20 @@
 # Copyright (c) 2015 Paul Sokolovsky
 # Distributed under MIT License
 #
+import sys
+import os
 
 from .screen import *
 from .basewidget import Widget
 
 
-class WEditor(Widget):
+class Editor(Widget):
 
-    def setup(self,text="Dialog", width=80, height=25, x=1, y=1, z=0,**kw):
+    def __init__(self, x=0, y=0, width=80, height=24):
+        try:
+            super().__init__()
+        except:
+            Widget.__init__(self)
         self.top_line = 0
         self.choice = 0
         self.row = 0
@@ -64,8 +70,8 @@ class WEditor(Widget):
         self.set_cursor()
 
     def show_line(self, l, i):
-        l = l[self.margin:]
-        l = l[:self.width]
+        l = l[self.margin :]
+        l = l[: self.width]
         self.wr(l)
         self.clear_num_pos(self.width - len(l))
 
@@ -180,37 +186,60 @@ class WEditor(Widget):
         return self.handle_edit_key(key)
 
     def handle_edit_key(self, key):
-            l = self.items[self.choice]
-            if key == KEY_ENTER:
-                self.items[self.choice] = l[:self.col + self.margin]
-                self.choice += 1
-                self.items[self.choice:self.choice] = [l[self.col + self.margin:]]
-                self.items_count += 1
-                self.col = 0
-                self.margin = 0
-                self.next_line()
-                self.redraw()
-            elif key == KEY_BACKSPACE:
-                if self.col + self.margin:
-                    if self.col:
-                        self.col -= 1
-                    else:
-                        self.margin -= 1
-                    l = l[:self.col + self.margin] + l[self.col + self.margin + 1:]
-                    self.items[self.choice] = l
-                    self.update_line()
-            elif key == KEY_DELETE:
-                l = l[:self.col + self.margin] + l[self.col + self.margin + 1:]
+        l = self.items[self.choice]
+        if key == KEY_ENTER:
+            self.items[self.choice] = l[: self.col + self.margin]
+            self.choice += 1
+            self.items[self.choice : self.choice] = [l[self.col + self.margin :]]
+            self.items_count += 1
+            self.col = 0
+            self.margin = 0
+            self.next_line()
+            self.redraw()
+        elif key == KEY_BACKSPACE:
+            if self.col + self.margin:
+                if self.col:
+                    self.col -= 1
+                else:
+                    self.margin -= 1
+                l = l[: self.col + self.margin] + l[self.col + self.margin + 1 :]
                 self.items[self.choice] = l
                 self.update_line()
-            else:
-                try:
-                    l = l[:self.col + self.margin] + str(key, "utf-8") + l[self.col + self.margin:]
-                except:
-                    l = 'error'
-                self.items[self.choice] = l
-                self.col += 1
-                self.adjust_cursor_eol()
-                self.update_line()
+        elif key == KEY_DELETE:
+            l = l[: self.col + self.margin] + l[self.col + self.margin + 1 :]
+            self.items[self.choice] = l
+            self.update_line()
+        else:
+            l = l[: self.col + self.margin] + str(key, "utf-8") + l[self.col + self.margin :]
+            self.items[self.choice] = l
+            self.col += 1
+            self.adjust_cursor_eol()
+            self.update_line()
+
+    def deinit_tty(self):
+        # Don't leave cursor in the middle of screen
+        self.goto(0, self.height)
+        try:
+            super().deinit_tty()
+        except:
+            Widget.deinit_tty(self)
 
 
+if __name__ == "__main__":
+    with open(sys.argv[1]) as f:
+        content = f.read().splitlines()
+        # content = f.readlines()
+
+    # os.write(1, b"\x1b[18t")
+    # key = os.read(0, 32)
+    # print(repr(key))
+
+    # key = os.read(0, 32)
+    # print(repr(key))
+
+    e = Editor()
+    e.init_tty()
+    e.enable_mouse()
+    e.set_lines(content)
+    e.loop()
+    e.deinit_tty()
