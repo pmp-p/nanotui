@@ -15,7 +15,7 @@ with nanotui.VisualPage("demo", "nanotui demo", 80, 25) as add:
             time.sleep(0.1)
             status(clk)
             choice.set_text('%-4s : "%s"' % (str(lb.choice), lb.get_text()))
-            print()
+            sys.stdout.flush()
 
         last = add("lbl", "Label", text=" ---------- Label --------------")
 
